@@ -2,25 +2,48 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 
+// Chave para armazenar os dados no localStorage
+const LOCAL_STORAGE_KEY = 'cadastroBensData';
+
 function App() {
   const [blocoAtual, setBlocoAtual] = useState('');
   const [tombamentoAtual, setTombamentoAtual] = useState('');
-  const [tombamentosDoBloco, setTombamentosDoBloco] = useState([]); // Tombamentos para o bloco atualmente em edição
-  const [dadosGerais, setDadosGerais] = useState([]); // Array de objetos {bloco: '', tombamentos: []} para todos os blocos
-  const [etapa, setEtapa] = useState(1); // 1: Bloco, 2: Tombamentos
+  const [tombamentosDoBloco, setTombamentosDoBloco] = useState([]);
+  const [dadosGerais, setDadosGerais] = useState(() => {
+    // Tenta carregar dados do localStorage na inicialização
+    try {
+      const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+      return storedData ? JSON.parse(storedData) : [];
+    } catch (error) {
+      console.error("Erro ao carregar dados do localStorage:", error);
+      return [];
+    }
+  });
+  const [etapa, setEtapa] = useState(1);
   const [mensagem, setMensagem] = useState('');
-  const [appEncerrado, setAppEncerrado] = useState(false); // Novo estado para indicar se a aplicação está encerrada
+  const [appEncerrado, setAppEncerrado] = useState(false);
 
   // Efeito para focar no campo de entrada quando a etapa muda
   useEffect(() => {
-    if (!appEncerrado) { // Só foca se a aplicação não estiver encerrada
+    if (!appEncerrado) {
       if (etapa === 1) {
-        document.getElementById('bloco')?.focus(); // Usar optional chaining para evitar erro se elemento não existir
+        document.getElementById('bloco')?.focus();
       } else if (etapa === 2) {
         document.getElementById('tombamento')?.focus();
       }
     }
-  }, [etapa, appEncerrado]); // Dependência em appEncerrado também
+  }, [etapa, appEncerrado]);
+
+  // Efeito para salvar dados no localStorage sempre que 'dadosGerais' mudar
+  // Este useEffect garante que a cada atualização, os dados sejam persistidos
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(dadosGerais));
+    } catch (error) {
+      console.error("Erro ao salvar dados no localStorage:", error);
+    }
+  }, [dadosGerais]);
+
 
   const handleBlocoChange = (e) => {
     setBlocoAtual(e.target.value);
@@ -36,57 +59,62 @@ function App() {
       return;
     }
     setMensagem('');
-    setEtapa(2); // Muda para a etapa de tombamentos
-    setTombamentoAtual(''); // Limpa o campo de tombamento para o novo bloco
+    setEtapa(2);
+    setTombamentoAtual('');
   };
 
   const adicionarOuControlarTombamento = () => {
     if (tombamentoAtual.trim() === '') {
-      setMensagem('Por favor, digite o Tombamento, "0" para finalizar o bloco, ou "1" para fechar a aplicação.');
+      setMensagem('Por favor, digite o Tombamento, "0" para finalizar o bloco, ou "1" para fechar e gerar o arquivo.');
       return;
     }
 
     if (tombamentoAtual === '0') {
       // Comando '0': Finaliza o bloco atual e prepara para o próximo
-      if (tombamentosDoBloco.length > 0) {
-        setDadosGerais([...dadosGerais, { bloco: blocoAtual, tombamentos: tombamentosDoBloco }]);
+      if (blocoAtual.trim() !== '' && tombamentosDoBloco.length > 0) {
+        setDadosGerais(prevDados => [...prevDados, { bloco: blocoAtual, tombamentos: tombamentosDoBloco }]);
+        setMensagem('Bloco finalizado e salvo no histórico. Digite o próximo Bloco.');
       } else {
         // Se o bloco foi finalizado com '0' mas não tinha tombamentos
-        // Você pode decidir se quer ou não registrar o bloco vazio.
-        // Por enquanto, vamos registrar apenas se houver tombamentos.
-        setMensagem('Nenhum tombamento adicionado a este bloco. Ele não será incluído no arquivo final.');
+        setMensagem('Bloco sem tombamentos adicionados. Digite o próximo Bloco.');
       }
       setBlocoAtual('');
-      setTombamentosDoBloco([]); // Limpa os tombamentos para o novo bloco
-      setEtapa(1); // Volta para a etapa de Bloco
-      setMensagem('Bloco finalizado. Por favor, digite o próximo Bloco ou "1" para fechar a aplicação.');
+      setTombamentosDoBloco([]);
+      setEtapa(1);
     } else if (tombamentoAtual === '1') {
       // Comando '1': Fechar a aplicação e gerar o arquivo TXT consolidado
 
-      // Salva o último bloco em edição, se houver tombamentos
+      let dadosParaGerar = [...dadosGerais];
+
+      // Se houver um bloco em edição com tombamentos, adiciona-o antes de gerar
       if (blocoAtual.trim() !== '' && tombamentosDoBloco.length > 0) {
-        setDadosGerais((prevDadosGerais) => [...prevDadosGerais, { bloco: blocoAtual, tombamentos: tombamentosDoBloco }]);
-        // Importante: usar o estado atualizado para gerar o TXT
-        // pois o setState é assíncrono.
-        gerarArquivoTxtConsolidado([...dadosGerais, { bloco: blocoAtual, tombamentos: tombamentosDoBloco }]);
-      } else {
-        gerarArquivoTxtConsolidado(dadosGerais); // Gera com os dados já salvos
+        dadosParaGerar = [...dadosParaGerar, { bloco: blocoAtual, tombamentos: tombamentosDoBloco }];
       }
 
+      // Garante que os dados recém-adicionados (se for o caso) sejam salvos no localStorage antes de gerar o TXT
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(dadosParaGerar));
+      } catch (error) {
+        console.error("Erro ao salvar dados finais no localStorage:", error);
+      }
+      
+      gerarArquivoTxtConsolidado(dadosParaGerar);
       setAppEncerrado(true);
-      setMensagem('Aplicação encerrada. O arquivo TXT consolidado foi gerado e baixado.');
-      // Opcional: desabilitar inputs, botões, etc.
+      setMensagem('Aplicação encerrada. O arquivo TXT consolidado com todos os dados salvos foi gerado e baixado.');
+      setBlocoAtual('');
+      setTombamentoAtual('');
+      setTombamentosDoBloco([]);
     } else {
       // Adiciona o tombamento à lista
       setTombamentosDoBloco([...tombamentosDoBloco, tombamentoAtual]);
-      setTombamentoAtual(''); // Limpa o campo para o próximo tombamento
+      setTombamentoAtual('');
       setMensagem('');
     }
   };
 
   const gerarArquivoTxtConsolidado = (finalDados) => {
     if (finalDados.length === 0) {
-      alert('Nenhum dado de bloco/tombamento foi coletado para gerar o arquivo.');
+      alert('Nenhum dado de bloco/tombamento foi coletado ou salvo para gerar o arquivo.');
       return;
     }
 
@@ -96,14 +124,14 @@ function App() {
 
     finalDados.forEach((item, index) => {
       conteudoTxt += `BLOCO: ${item.bloco}\n`;
-      if (item.tombamentos.length > 0) {
+      if (item.tombamentos && item.tombamentos.length > 0) {
         item.tombamentos.forEach((tomb, i) => {
           conteudoTxt += `  Tombamento ${i + 1}: ${tomb}\n`;
         });
       } else {
         conteudoTxt += `  (Nenhum tombamento registrado para este bloco)\n`;
       }
-      conteudoTxt += `-------------------------------------\n\n`; // Separador entre blocos
+      conteudoTxt += `-------------------------------------\n\n`;
     });
 
     const nomeArquivo = `cadastro_bens_consolidado_${new Date().getTime()}.txt`;
@@ -121,7 +149,20 @@ function App() {
     console.log(`Arquivo consolidado "${nomeArquivo}" gerado e baixado.`);
   };
 
-  // Renderiza a interface
+  const limparTodosOsDados = () => {
+    if (window.confirm("Tem certeza que deseja apagar TODOS os dados salvos (incluindo os de sessões anteriores)? Esta ação é irreversível!")) {
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
+      setDadosGerais([]);
+      setBlocoAtual('');
+      setTombamentoAtual('');
+      setTombamentosDoBloco([]);
+      setEtapa(1);
+      setAppEncerrado(false);
+      setMensagem('Todos os dados foram apagados. Recomece o cadastro.');
+    }
+  };
+
+
   return (
     <div className="container">
       <h1>Cadastro de Bens por Bloco</h1>
@@ -129,15 +170,16 @@ function App() {
       {appEncerrado ? (
         <div className="card encerrado">
           <p className="mensagem-sucesso">{mensagem}</p>
-          <p>Você pode fechar esta janela do navegador.</p>
-          {/* Opcional: botão para reiniciar */}
-          {/* <button onClick={() => window.location.reload()}>Reiniciar Aplicação</button> */}
+          <p>Você pode fechar esta janela do navegador ou reiniciar.</p>
+          <button onClick={() => window.location.reload()}>Reiniciar Aplicação</button>
+          <button onClick={limparTodosOsDados} className="btn-secundario" style={{ marginLeft: '10px' }}>Apagar Tudo e Reiniciar</button>
         </div>
       ) : (
         <>
           {etapa === 1 && (
             <div className="card">
-              <label htmlFor="bloco">Digite o Bloco:</label>
+              <p className="instrucao">Digite o Bloco para começar.</p>
+              <label htmlFor="bloco">Bloco:</label>
               <input
                 type="text"
                 id="bloco"
@@ -148,22 +190,27 @@ function App() {
                     iniciarTombamentos();
                   }
                 }}
-                disabled={appEncerrado} // Desabilita se encerrado
                 required
               />
               {mensagem && etapa === 1 && <p className="mensagem-erro">{mensagem}</p>}
-              <button onClick={iniciarTombamentos} disabled={appEncerrado}>
-                Iniciar Tombamentos para este Bloco
-              </button>
+              <button onClick={iniciarTombamentos}>Iniciar Tombamentos para este Bloco</button>
+              
+              {dadosGerais.length > 0 && (
+                <p className="dados-existentes">
+                  **Existem {dadosGerais.length} bloco(s) salvo(s) de sessões anteriores.**
+                  <button onClick={() => gerarArquivoTxtConsolidado(dadosGerais)} className="btn-secundario btn-pequeno">Gerar TXT dos dados existentes</button>
+                </p>
+              )}
             </div>
           )}
 
           {etapa === 2 && (
             <div className="card">
               <h2>Bloco Atual: **{blocoAtual}**</h2>
-              <label htmlFor="tombamento">
-                Digite o Tombamento do Bem (ou **0** para finalizar este Bloco, ou **1** para fechar a aplicação):
-              </label>
+              <p className="instrucao">
+                Digite o Tombamento, ou **0** para ir para o próximo bloco, ou **1** para finalizar tudo.
+              </p>
+              <label htmlFor="tombamento">Tombamento do Bem:</label>
               <input
                 type="text"
                 id="tombamento"
@@ -174,11 +221,10 @@ function App() {
                     adicionarOuControlarTombamento();
                   }
                 }}
-                disabled={appEncerrado} // Desabilita se encerrado
                 required
               />
               {mensagem && etapa === 2 && <p className="mensagem-erro">{mensagem}</p>}
-              <button onClick={adicionarOuControlarTombamento} disabled={appEncerrado}>
+              <button onClick={adicionarOuControlarTombamento}>
                 {tombamentoAtual === '0' ? 'Finalizar Bloco' :
                  tombamentoAtual === '1' ? 'Finalizar Tudo e Gerar TXT' :
                  'Adicionar Tombamento'}
