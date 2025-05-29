@@ -1,0 +1,89 @@
+/* src/App.css */
+body {
+  font-family: Arial, sans-serif;
+  background-color: #f4f4f4;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  margin: 0;
+}
+
+.container {
+  background-color: #ffffff;
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  width: 100%;
+  max-width: 450px;
+}
+
+h1 {
+  color: #333;
+  margin-bottom: 25px;
+}
+
+.card {
+  margin-bottom: 20px;
+  padding: 20px;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  background-color: #f9f9f9;
+}
+
+label {
+  display: block;
+  margin-bottom: 10px;
+  font-weight: bold;
+  color: #555;
+  text-align: left;
+}
+
+input[type="text"] {
+  width: calc(100% - 22px); /* Ajusta a largura considerando padding e borda */
+  padding: 12px;
+  margin-bottom: 15px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 16px;
+  box-sizing: border-box; /* Garante que padding e borda não aumentem a largura total */
+}
+
+button {
+  padding: 12px 25px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.3s ease;
+  margin-top: 10px;
+}
+
+button:hover {
+  background-color: #0056b3;
+}
+
+.btn-secundario {
+  background-color: #6c757d;
+  margin-right: 10px;
+}
+
+.btn-secundario:hover {
+  background-color: #5a6268;
+}
+
+.botoes-container {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+.mensagem-erro {
+  color: #dc3545;
+  margin-top: -5px;
+  margin-bottom: 10px;
+  font-size: 0.9em;
+}
